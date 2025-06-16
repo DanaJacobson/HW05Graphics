@@ -1,24 +1,92 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>HW5</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
-  </head>
-  <body>
-    <div id="container">
-      <div id="controls-container">
-        <h3>Controls:</h3>
-        <p>O - Toggle orbit camera</p>
-      </div>
-      <div id="score-container">
-        <h3>Score:</h3>
-        <p>Player 1: 0</p>
-        <p>Player 2: 0</p>
-      </div>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HW5 Basketball Court</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: black;
+      font-family: 'Courier New', monospace;
+    }
+
+    #container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #controls-container,
+    #score-container {
+      position: absolute;
+      color: #00f7ff; 
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      z-index: 10;
+    }
+
+    #controls-container {
+      bottom: 20px;
+      left: 20px;
+      font-size: 14px;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 8px 12px;
+      border-left: 3px solid #00f7ff;
+      border-radius: 4px;
+    }
+
+    #score-container {
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 16px;
+      border: 2px dashed #00f7ff;
+      border-radius: 8px;
+    }
+
+    #score-container h3 {
+      font-size: 20px;
+      margin: 0 0 6px 0;
+      color: #39ff14; 
+    }
+
+    #score-container p {
+      font-size: 13px;
+      margin: 2px 0;
+      font-weight: normal;
+      color: #f0f8ff;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <div id="controls-container">
+      <h3>Controls:</h3>
+      <p>O - Toggle orbit camera</p>
     </div>
 
-    <script src="src/hw5.js" type="module"></script>
-  </body>
+    <div id="score-container">
+      <h3>Score:</h3>
+      <p>Player 1: 0</p>
+      <p>Player 2: 0</p>
+    </div>
+  </div>
+
+  <script src="src/hw5.js" type="module"></script>
+</body>
 </html>
