@@ -175,7 +175,7 @@ function addNet(xPos, isLeft = true) {
 }
 
 function addBasketball() {
-  const ballRadius = 0.12;
+  const ballRadius = 0.20;
   const segments = 32;
   const rings = 32;
   const geometry = new THREE.SphereGeometry(ballRadius, segments, rings);
