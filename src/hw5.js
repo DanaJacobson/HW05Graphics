@@ -28,6 +28,20 @@ function degrees_to_radians(degrees) {
 
 const COURT_LENGTH = 30;
 const COURT_WIDTH = 15;
+let basketball;
+const moveSpeed = 0.1;
+const moveDirection = new THREE.Vector3(0, 0, 0);
+let shotPower = 50;
+const shotPowerStep = 1;
+let isShotInProgress = false;
+let ballVelocity = new THREE.Vector3();
+let ballMesh;
+let leftRim, rightRim;
+const gravity = -9.8 * 0.01;
+let totalScore = 0;
+let shotAttempts = 0;
+let shotsMade = 0;
+let shotStartPosition = null;
 
 function addLine(start, end) {
   const material = new THREE.LineBasicMaterial({ color: 0xffffff });
@@ -94,6 +108,9 @@ function addRim(xPos, isLeft = true) {
   const offset = isLeft ? +0.3 : -0.3;
   rim.position.set(xPos + offset, rimY, rimZ);
   scene.add(rim);
+
+  if (isLeft) leftRim = rim;
+  else rightRim = rim;
 }
 
 function addSupportStructure(xPos, isLeft = true) {
@@ -175,7 +192,7 @@ function addNet(xPos, isLeft = true) {
 }
 
 function addBasketball() {
-  const ballRadius = 0.20;
+  const ballRadius = 0.12;
   const segments = 32;
   const rings = 32;
   const geometry = new THREE.SphereGeometry(ballRadius, segments, rings);
@@ -183,48 +200,51 @@ function addBasketball() {
     color: 0xff8c00,
     shininess: 30
   });
+  const ballGroup = new THREE.Group();
 
   const ball = new THREE.Mesh(geometry, material);
-
-  ball.position.set(0, ballRadius + 0.11, 0);
   ball.castShadow = true;
-  scene.add(ball);
 
-  addBallSeamRings(ball.position, ballRadius);
+  ballGroup.add(ball);
+  ballMesh = ball;
+  addBallSeamRings(ballGroup, ballRadius);
+  ball.position.set(0, 0, 0);
+
+  return ballGroup;
 }
 
-function addBallSeamRings(center, radius) {
+function addBallSeamRings(group, radius) {
   const segments = 64;
   const material = new THREE.LineBasicMaterial({ color: 0x000000 });
   const ring1Points = [];
   for (let i = 0; i <= segments; i++) {
     const theta = (i / segments) * 2 * Math.PI;
     ring1Points.push(new THREE.Vector3(
-      center.x + Math.cos(theta) * radius,
-      center.y,
-      center.z + Math.sin(theta) * radius
+      Math.cos(theta) * radius,
+      0,
+      Math.sin(theta) * radius
     ));
   }
   const ring1 = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(ring1Points),
     material
   );
-  scene.add(ring1);
+  group.add(ring1);
 
   const ring2Points = [];
   for (let i = 0; i <= segments; i++) {
     const theta = (i / segments) * 2 * Math.PI;
     ring2Points.push(new THREE.Vector3(
-      center.x,
-      center.y + Math.cos(theta) * radius,
-      center.z + Math.sin(theta) * radius
+      0,
+      Math.sin(theta) * radius,
+      Math.cos(theta) * radius
     ));
   }
   const ring2 = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(ring2Points),
     material
   );
-  scene.add(ring2);
+  group.add(ring2);
 }
 
 
@@ -289,11 +309,17 @@ function createBasketballCourt() {
   addNet(rightX, false);
 
   //Basketball
-  addBasketball();
+  basketball = addBasketball();
+  basketball.position.y = 0.23;
+  basketball.hasScored = false;
+  scene.add(basketball);
 }
+
+let lastBallPosition = null;
 
 // Create all elements
 createBasketballCourt();
+lastBallPosition = basketball.position.clone();
 
 // Set camera position for better view
 const cameraTranslate = new THREE.Matrix4();
@@ -304,15 +330,137 @@ camera.applyMatrix4(cameraTranslate);
 const controls = new OrbitControls(camera, renderer.domElement);
 let isOrbitEnabled = true;
 
-
 // Handle key events
 function handleKeyDown(e) {
-  if (e.key === "o") {
-    isOrbitEnabled = !isOrbitEnabled;
+  switch (e.key) {
+    case "o": isOrbitEnabled = !isOrbitEnabled; break;
+    case "ArrowLeft": moveDirection.x = -1; break;
+    case "ArrowRight": moveDirection.x = 1; break;
+    case "ArrowUp": moveDirection.z = -1; break;
+    case "ArrowDown": moveDirection.z = 1; break;
+    case "w": case "W": shotPower = Math.min(100, shotPower + shotPowerStep); updatePowerDisplay(); break;
+    case "s": case "S": shotPower = Math.max(0, shotPower - shotPowerStep); updatePowerDisplay(); break;
+    case "r": case "R": resetBasketball(); break;
+    case " ":
+      if (!isShotInProgress) {
+        shotAttempts++;
+        shootBall();
+      } break;
   }
 }
 
-document.addEventListener('keydown', handleKeyDown);
+function handleKeyUp(e) {
+  switch (e.key) {
+    case "ArrowLeft": moveDirection.x = 0; break;
+    case "ArrowRight": moveDirection.x = 0; break;
+    case "ArrowUp": moveDirection.z = 0; break;
+    case "ArrowDown": moveDirection.z = 0; break;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  updatePowerDisplay();
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+});
+
+function updatePowerDisplay() {
+  const display = document.getElementById("power-display");
+  if (display) {
+    display.textContent = `Shot Power: ${shotPower}%`;
+  }
+}
+
+function shootBall() {
+  isShotInProgress = true;
+  basketball.hasScored = false;
+  shotStartPosition = basketball.position.clone();
+
+  const leftHoopX = -COURT_LENGTH / 2 + 0.4 + 0.3;
+  const rightHoopX = COURT_LENGTH / 2 - 0.4 - 0.3;
+  const targetX = (basketball.position.x < 0) ? leftHoopX : rightHoopX;
+  const target = new THREE.Vector3(targetX, 2.94, 0);
+  const origin = basketball.position.clone();
+  const direction = target.clone().sub(origin).normalize();
+
+  ballVelocity.set(
+    direction.x * (shotPower * 0.018),
+    shotPower * 0.012 + 0.25,
+    direction.z * (shotPower * 0.018)
+  );
+}
+
+function checkScore() {
+  const scoringRimX = basketball.position.x < 0 ? -COURT_LENGTH / 2 + 0.7 : COURT_LENGTH / 2 - 0.7;
+  const rimCenter = new THREE.Vector3(scoringRimX, 3.05, 0);
+  const rimRadius = 0.23;
+  const ballRadius = 0.12;
+
+  const startHorizontalDist = Math.sqrt(
+    Math.pow(shotStartPosition.x - rimCenter.x, 2) +
+    Math.pow(shotStartPosition.z - rimCenter.z, 2)
+  );
+
+  const isFromOutside = startHorizontalDist > 0.3; 
+
+  const horizontalDist = Math.sqrt(
+    Math.pow(basketball.position.x - rimCenter.x, 2) +
+    Math.pow(basketball.position.z - rimCenter.z, 2)
+  );
+  const withinHoop = horizontalDist < (rimRadius - ballRadius * 0.8);
+
+  const downward = ballVelocity.y < 0;
+  const passedThrough = lastBallPosition.y > rimCenter.y && basketball.position.y < rimCenter.y;
+
+  return withinHoop && downward && passedThrough && isFromOutside;
+}
+
+function registerSuccessfulShot() {
+  totalScore += 2;
+  shotsMade++;
+
+  displayShotMessage("SHOT MADE!");
+  updateScoreDisplay();
+}
+
+function updateScoreDisplay() {
+  const scoreEl = document.getElementById("score-text");
+  const attemptsEl = document.getElementById("attempts-text");
+  const madeEl = document.getElementById("made-text");
+  const accuracyEl = document.getElementById("accuracy-text");
+
+  if (scoreEl && attemptsEl && madeEl && accuracyEl) {
+    const percent = shotAttempts === 0 ? 0 : ((shotsMade / shotAttempts) * 100).toFixed(1);
+    scoreEl.textContent = `Score: ${totalScore}`;
+    attemptsEl.textContent = `Attempts: ${shotAttempts}`;
+    madeEl.textContent = `Made: ${shotsMade}`;
+    accuracyEl.textContent = `Accuracy: ${percent}%`;
+  }
+}
+
+function displayShotMessage(message) {
+  const messageBox = document.getElementById("shot-message");
+  if (messageBox) {
+    messageBox.textContent = message;
+    messageBox.style.opacity = 1;
+    setTimeout(() => { messageBox.style.opacity = 0; }, 1500);
+  }
+}
+
+function resetBasketball() {
+  basketball.position.set(0, 0.23, 0);
+  ballVelocity.set(0, 0, 0);
+  isShotInProgress = false;
+  basketball.hasScored = false;
+  lastBallPosition.copy(basketball.position);
+  shotPower = 50;
+  updatePowerDisplay();
+  totalScore = 0;
+  shotAttempts = 0;
+  shotsMade = 0;
+  shotStartPosition = null;
+  updateScoreDisplay();
+}
 
 // Animation function
 function animate() {
@@ -321,7 +469,81 @@ function animate() {
   // Update controls
   controls.enabled = isOrbitEnabled;
   controls.update();
-  
+
+  // Moving basketball around
+  if (basketball && !isShotInProgress) {
+  const newX = basketball.position.x + moveDirection.x * moveSpeed;
+  const newZ = basketball.position.z + moveDirection.z * moveSpeed;
+
+  const halfCourtLength = COURT_LENGTH / 2 - 0.7;
+  const halfCourtWidth = COURT_WIDTH / 2 - 0.7;
+
+  basketball.position.x = THREE.MathUtils.clamp(newX, -halfCourtLength, halfCourtLength);
+  basketball.position.z = THREE.MathUtils.clamp(newZ, -halfCourtWidth, halfCourtWidth);
+  }
+
+if (isShotInProgress) {
+  lastBallPosition.copy(basketball.position);
+  basketball.position.add(ballVelocity);
+  ballVelocity.y += gravity;
+
+  if (!basketball.hasScored && checkScore()) {
+    registerSuccessfulShot();
+    basketball.hasScored = true;
+  }
+
+  const ballRadius = 0.12;
+  const courtY = 0.11;
+  const groundY = ballRadius + courtY;
+
+  if (basketball.position.y <= groundY) {
+    basketball.position.y = groundY;
+    ballVelocity.y *= -0.5;
+    ballVelocity.multiplyScalar(0.8);
+
+    if (Math.abs(ballVelocity.y) < 0.15) {
+      isShotInProgress = false;
+      basketball.position.y = groundY;
+      lastBallPosition.copy(basketball.position);
+
+      if (!basketball.hasScored) {
+        displayShotMessage("MISSED SHOT");
+        updateScoreDisplay();
+      }
+      basketball.hasScored = false;
+    }
+  }
+
+  // Rim Collusion 
+  const ballBox = new THREE.Box3().setFromObject(basketball);
+
+  if (leftRim && rightRim) {
+    const leftRimBox = new THREE.Box3().setFromObject(leftRim);
+    const rightRimBox = new THREE.Box3().setFromObject(rightRim);
+
+    if (ballBox.intersectsBox(leftRimBox) || ballBox.intersectsBox(rightRimBox)) {
+      ballVelocity.x *= -0.3;
+      ballVelocity.z *= -0.3;
+      ballVelocity.y *= 0.5;
+    }
+  }
+}
+
+// Ball Rotation
+if (ballMesh && lastBallPosition) {
+  const movementVector = new THREE.Vector3().subVectors(basketball.position, lastBallPosition);
+  const movementDistance = movementVector.length();
+
+  if (movementDistance > 0.0001) {
+    const axis = new THREE.Vector3().crossVectors(movementVector, new THREE.Vector3(0, 1, 0)).normalize();
+    const ballRadius = 0.12;
+    const angle = movementDistance / ballRadius;
+    basketball.rotateOnAxis(axis, angle);
+  }
+
+  lastBallPosition.copy(basketball.position);
+}
+
   renderer.render(scene, camera);
 }
 

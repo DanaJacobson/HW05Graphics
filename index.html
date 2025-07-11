@@ -28,16 +28,8 @@
       height: 100%;
     }
 
-    #controls-container,
-    #score-container {
-      position: absolute;
-      color: #00f7ff; 
-      font-family: 'Courier New', monospace;
-      font-weight: bold;
-      z-index: 10;
-    }
-
     #controls-container {
+      position: absolute;
       bottom: 20px;
       left: 20px;
       font-size: 14px;
@@ -45,30 +37,70 @@
       padding: 8px 12px;
       border-left: 3px solid #00f7ff;
       border-radius: 4px;
+      max-height: 100px;
+      overflow-y: auto;
+      width: 500px;
+      direction: rtl;
+      text-align: left;
+      color: #00f7ff;
+      font-weight: bold;
     }
 
-    #score-container {
+    #power-container {
+      position: absolute;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
+      right: 20px;
+      text-align: right;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 16px;
+      border: 2px solid #39ff14;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      z-index: 10;
+    }
+
+    #power-display {
+      font-size: 16px;
+      margin: 0;
+      color: #39ff14;
+    }
+
+    #stats-display {
+      position: absolute;
+      top: 20px;
+      left: 20px;
       background-color: rgba(0, 0, 0, 0.4);
       padding: 10px 16px;
       border: 2px dashed #00f7ff;
       border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      z-index: 10;
     }
 
-    #score-container h3 {
-      font-size: 20px;
+    #stats-display h3 {
+      font-size: 18px;
       margin: 0 0 6px 0;
-      color: #39ff14; 
+      color: #39ff14;
     }
 
-    #score-container p {
+    #stats-display p {
       font-size: 13px;
       margin: 2px 0;
       font-weight: normal;
       color: #f0f8ff;
+    }
+
+    #shot-message {
+      color: yellow;
+      position: absolute;
+      top: 160px;
+      left: 20px;
+      font-size: 22px;
+      font-weight: bold;
+      transition: opacity 0.5s;
+      z-index: 11;
     }
   </style>
 </head>
@@ -76,15 +108,28 @@
 <body>
   <div id="container">
     <div id="controls-container">
-      <h3>Controls:</h3>
-      <p>O - Toggle orbit camera</p>
+      <h3>:Controls</h3>
+      <p>O - Toggle Orbit Camera</p>
+      <p>Arrow Left/Right - Move Ball Horizontally Across Court</p>
+      <p>Arrow Up/Down - Move Ball Forward/Backward On Court</p>
+      <p>W/S - Increase/Decrease Shot Power</p>
+      <p>Spacebar - Launch Ball</p>
+      <p>R - Reset Game</p>
     </div>
 
-    <div id="score-container">
-      <h3>Score:</h3>
-      <p>Player 1: 0</p>
-      <p>Player 2: 0</p>
+    <div id="stats-display">
+      <h3>Game Stats:</h3>
+      <p id="score-text">Score: 0</p>
+      <p id="attempts-text">Attempts: 0</p>
+      <p id="made-text">Made: 0</p>
+      <p id="accuracy-text">Accuracy: 0%</p>
     </div>
+
+    <div id="power-container">
+      <p id="power-display">Shot Power: 50%</p>
+    </div>
+
+    <div id="shot-message"></div>
   </div>
 
   <script src="src/hw5.js" type="module"></script>
